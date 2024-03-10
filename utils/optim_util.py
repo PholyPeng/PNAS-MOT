@@ -5,8 +5,8 @@ import torch
 from torch import nn
 from torch._utils import _unflatten_dense_tensors
 from torch.nn.utils import parameters_to_vector
-from modules.groupnorm import GroupNorm
-bn_types = (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d, GroupNorm)
+
+bn_types = (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d, nn.GroupNorm)
 
 
 def split_bn_bias(layer_groups):

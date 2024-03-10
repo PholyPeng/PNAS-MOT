@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 import torch.nn as nn
-from torch.autograd import Variable
 
 
 def _concat(xs):
@@ -18,18 +17,17 @@ class Architect(object):
                                           betas=(0.5, 0.999),
                                           weight_decay=args.arch_weight_decay)
 
+
     def _compute_unrolled_model(self, det_img, det_info, det_id, det_cls, det_split, eta, network_optimizer):
         loss = self.model._loss(det_img, det_info, det_id, det_cls, det_split)
-        theta = _concat(self.model.parameters()).data
+        theta = _concat(self.model.parameters()).detach()
         try:
             moment = _concat(network_optimizer.state[v]['momentum_buffer']
                              for v in self.model.parameters()).mul_(
                                  self.network_momentum)
         except:
             moment = torch.zeros_like(theta)
-        dtheta = _concat(torch.autograd.grad(
-            loss,
-            self.model.parameters())).data + self.network_weight_decay * theta
+        dtheta = _concat(torch.autograd.grad(loss, self.model.parameters())).detach() + self.network_weight_decay * theta
         unrolled_model = self._construct_model_from_theta(theta.sub(eta, moment + dtheta))
         return unrolled_model
 
@@ -58,7 +56,7 @@ class Architect(object):
 
         unrolled_loss.backward()
         dalpha = [v.grad for v in unrolled_model.arch_parameters()]
-        vector = [v.grad.data for v in unrolled_model.parameters()]
+        vector = [v.grad.detach() for v in unrolled_model.parameters()]
         implicit_grads = self._hessian_vector_product(vector, input_train, det_info_train, det_id_train, det_cls_train, det_split_train)
 
         for g, ig in zip(dalpha, implicit_grads):
@@ -66,7 +64,7 @@ class Architect(object):
 
         for v, g in zip(self.model.arch_parameters(), dalpha):
             if v.grad is None:
-                v.grad = Variable(g.data)
+                v.grad = g.data
             else:
                 v.grad.data.copy_(g.data)
 
@@ -91,8 +89,7 @@ class Architect(object):
         for p, v in zip(self.model.parameters(), vector):
             p.data.add_(R, v)
         loss = self.model._loss(input_train, det_info_train, det_id_train, det_cls_train, det_split_train)
-        # print("equs")
-        # print(self.model.arch_parameters().require_grad)
+
         grads_p = torch.autograd.grad(loss, self.model.arch_parameters())
 
         for p, v in zip(self.model.parameters(), vector):

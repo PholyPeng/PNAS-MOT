@@ -61,8 +61,8 @@ class TrackingNet(nn.Module):
         # self.config = GlobalConfig()
         # self.encoder = Encoder(self.config)
         
-        genotype = searched_mode2
-        self.encoder = Network(genotype_image = genotype, genotype_lidar = genotype)
+        genotype = low
+        self.encoder = Network(search_mode = 2, genotype_image = genotype, genotype_lidar = genotype)
 
 
     def associate(self, objs, dets):

@@ -1,7 +1,5 @@
 import torch
 import torch.nn as nn
-from torch import Tensor
-from .groupnorm import GroupNorm
 
 
 # Similarity function
@@ -60,11 +58,11 @@ class affinity_module(nn.Module):
         self.w_new_end = new_end(in_channels * expansion)
         self.conv1 = nn.Sequential(
             nn.Conv2d(in_channels * expansion, in_channels, 1, 1),
-            GroupNorm(in_channels, in_channels), nn.ReLU(inplace=True),
+            nn.GroupNorm(in_channels, in_channels), nn.ReLU(inplace=True),
             nn.Conv2d(in_channels, in_channels, 1, 1),
-            GroupNorm(in_channels, in_channels), nn.ReLU(inplace=True),
+            nn.GroupNorm(in_channels, in_channels), nn.ReLU(inplace=True),
             nn.Conv2d(in_channels, in_channels // 4, 1, 1),
-            GroupNorm(in_channels // 4, in_channels // 4),
+            nn.GroupNorm(in_channels // 4, in_channels // 4),
             nn.ReLU(inplace=True), nn.Conv2d(in_channels // 4, 1, 1, 1))
 
     def forward(self, objs, dets):

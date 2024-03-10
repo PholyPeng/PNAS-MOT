@@ -10,24 +10,6 @@ from utils.data_util import generate_seq_dets, generate_seq_gts, generate_seq_de
                         get_rotate_mat, align_pos, align_points, get_frame_det_info, get_transform_mat
 
 
-# TRAIN_SEQ_ID = ['0003', '0001']
-# VALID_SEQ_ID = ['0005', '0018', '0019']
-# TEST_SEQ_ID = [f'{i:04d}' for i in range(1)]
-# # Valid sequence 0017 has no cars in detection,
-# # so it should not be included if val with GT detection
-# # VALID_SEQ_ID = ['0005', '0007', '0011', '0002', '0014', \
-# #                '0000', '0010', '0016', '0019', '0018']
-# TRAINVAL_SEQ_ID = [f'{i:04d}' for i in range(1)]
-
-# TRAIN_SEQ_ID = ['0001']
-# VALID_SEQ_ID = ['0000']
-# TEST_SEQ_ID = [f'{i:04d}' for i in range(1)]
-# # Valid sequence 0017 has no cars in detection,
-# # so it should not be included if val with GT detection
-# # VALID_SEQ_ID = ['0005', '0007', '0011', '0002', '0014', \
-# #                '0000', '0010', '0016', '0019', '0018']
-# TRAINVAL_SEQ_ID = [f'{i:04d}' for i in range(1)]
-
 TRAIN_SEQ_ID = ['0003', '0001', '0013', '0009', '0004', \
                 '0006', '0008', '0020', '0015', '0012']
 VALID_SEQ_ID = ['0005', '0007', '0017', '0011', '0002', \
@@ -38,6 +20,15 @@ TEST_SEQ_ID = [f'{i:04d}' for i in range(29)]
 # VALID_SEQ_ID = ['0005', '0007', '0011', '0002', '0014', \
 #                '0000', '0010', '0016', '0019', '0018']
 TRAINVAL_SEQ_ID = [f'{i:04d}' for i in range(21)]
+
+# TRAIN_SEQ_ID = ['0001']
+# VALID_SEQ_ID = ['0000']
+# TEST_SEQ_ID = [f'{i:04d}' for i in range(1)]
+# # Valid sequence 0017 has no cars in detection,
+# # so it should not be included if val with GT detection
+# # VALID_SEQ_ID = ['0005', '0007', '0011', '0002', '0014', \
+# #                '0000', '0010', '0016', '0019', '0018']
+# TRAINVAL_SEQ_ID = [f'{i:04d}' for i in range(1)]
 
 def pil_loader(img_str):
     buff = io.BytesIO(img_str)

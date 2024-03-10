@@ -16,14 +16,12 @@ from utils.data_util import write_kitti_result
 from utils.train_util import AverageMeter, create_logger, load_state
 
 parser = argparse.ArgumentParser(description='PyTorch mmMOT Testing')
-parser.add_argument('--config', default='./experiments/config.yaml')
-parser.add_argument('--load-path', default='./experiments/ckpt_best.pth.tar', type=str)
-parser.add_argument('--result-path', default='./experiments/results', type=str)
+parser.add_argument('--config', default='cfgs/config_res50.yaml')
+parser.add_argument('--load-path', default='', type=str)
+parser.add_argument('--result-path', default='', type=str)
 parser.add_argument('--recover', action='store_true')
 parser.add_argument('-e', '--evaluate', action='store_true')
 parser.add_argument('--result_sha', default='last')
-parser.add_argument('--drop_path_prob', type=float, default=0.2, help='drop path probability')
-
 
 
 def main():
@@ -39,7 +37,7 @@ def main():
     # create model
     model = build_model(config)
     model.cuda()
-    model.encoder.drop_path_prob = args.drop_path_prob
+
     # optionally resume from a checkpoint
     last_iter = -1
     best_mota = 0
@@ -137,7 +135,7 @@ def validate_seq(val_loader,
     tracking_module.eval()
 
     logger = logging.getLogger('global_logger')
-    
+    end = time.time()
 
     with torch.no_grad():
         for i, (input, det_info, dets, det_split) in enumerate(val_loader):
@@ -146,12 +144,12 @@ def validate_seq(val_loader,
                 for k, v in det_info.items():
                     det_info[k] = det_info[k].cuda() if not isinstance(
                         det_info[k], list) else det_info[k]
-            start = time.time()
+
             # compute output
             aligned_ids, aligned_dets, frame_start = tracking_module.predict(
                 input[0], det_info, dets, det_split)
-            end = time.time()
-            batch_time.update(end - start)
+
+            batch_time.update(time.time() - end)
             end = time.time()
             if i % config.print_freq == 0:
                 logger.info('Test Frame: [{0}/{1}]\tTime {batch_time.val:.3f}'

@@ -393,63 +393,116 @@ class NetworkEncoder(nn.Module):
 """ 
 
 class NetworkEncoder(nn.Module):
-    def __init__(self, C_image = 64, C_lidar = 64, out_channels = 512, layers_image = 2, layers_lidar = 2,  genotype_image = None, genotype_lidar = None):
+    def __init__(self, search_mode, C_image = 64, C_lidar = 64, out_channels = 512, layers_image = 2, layers_lidar = 2,  genotype_image = None, genotype_lidar = None):
         super(NetworkEncoder, self).__init__()
+        self.search_mode = search_mode
         self.image_layers = layers_image
         self.lidar_layers = layers_lidar
-        
-        self.stem_image = nn.Sequential(
-            nn.Conv2d(3, C_image, kernel_size = 7, stride = 2, padding = 3, bias=False),
-            nn.BatchNorm2d(C_image, eps=1e-05, momentum=0.1,affine=True, track_running_stats=True),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=1, dilation=1, ceil_mode=False)
-        )
-
-        self.stem_lidar = nn.Sequential(
-            nn.Conv2d(1, C_lidar, kernel_size=7, stride=2, padding=3, bias=False),
-            nn.BatchNorm2d(C_lidar, eps=1e-05, momentum=0.1,affine=True, track_running_stats=True),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=1, dilation=1, ceil_mode=False)
-        )
         self.n_views = 1   
         self.seq_len = 1
 
-        C_prev_prev_i, C_prev_i, C_curr_i = C_image, C_image, C_image
-        self.cells_image = nn.ModuleList()
-        reduction_prev = False       
-        for i in range(self.image_layers):
-            if i in [self.image_layers // 3, 2 * self.image_layers // 3]:
-                C_curr_i *= 2
-                reduction = True
-            else:
-                reduction = False
-            cell = Cell(genotype_image, C_prev_prev_i, C_prev_i, C_curr_i, reduction,
-                        reduction_prev)
-            reduction_prev = reduction
-            self.cells_image += [cell]
-            C_prev_prev_i, C_prev_i = C_prev_i, cell.multiplier * C_curr_i
-            
-        self.image_global_pooling =  nn.AdaptiveAvgPool2d(output_size=(1, 1))
-        self.image_fc = nn.Linear(C_prev_i, out_channels)
+        if search_mode == 2:
+            self.stem_image = nn.Sequential(
+                nn.Conv2d(3, C_image, kernel_size = 7, stride = 2, padding = 3, bias=False),
+                nn.BatchNorm2d(C_image, eps=1e-05, momentum=0.1,affine=True, track_running_stats=True),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(kernel_size=3, stride=2, padding=1, dilation=1, ceil_mode=False)
+            )
 
-        C_prev_prev_l, C_prev_l, C_curr_l = C_lidar, C_lidar, C_lidar
-        self.cells_lidar = nn.ModuleList()
-        reduction_prev = False
-        for i in range(self.lidar_layers):
-            if i in [self.lidar_layers // 3, 2 * self.lidar_layers // 3]:
-                C_curr_l *= 2
-                reduction = True
-            else:
-                reduction = False
-            cell = Cell(genotype_lidar, C_prev_prev_l, C_prev_l, C_curr_l, reduction,
-                        reduction_prev)
-            reduction_prev = reduction
-            self.cells_lidar += [cell]
-            C_prev_prev_l, C_prev_l = C_prev_l, cell.multiplier * C_curr_l
-        
-        self.lidar_global_pooling =  nn.AdaptiveAvgPool2d(output_size=(1, 1))
-        self.lidar_fc = nn.Linear(C_prev_l, out_channels)
-        
+            self.stem_lidar = nn.Sequential(
+                nn.Conv2d(1, C_lidar, kernel_size=7, stride=2, padding=3, bias=False),
+                nn.BatchNorm2d(C_lidar, eps=1e-05, momentum=0.1,affine=True, track_running_stats=True),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(kernel_size=3, stride=2, padding=1, dilation=1, ceil_mode=False)
+            )
+
+
+            C_prev_prev_i, C_prev_i, C_curr_i = C_image, C_image, C_image
+            self.cells_image = nn.ModuleList()
+            reduction_prev = False       
+            for i in range(self.image_layers):
+                if i in [self.image_layers // 3, 2 * self.image_layers // 3]:
+                    C_curr_i *= 2
+                    reduction = True
+                else:
+                    reduction = False
+                cell = Cell(genotype_image, C_prev_prev_i, C_prev_i, C_curr_i, reduction,
+                            reduction_prev)
+                reduction_prev = reduction
+                self.cells_image += [cell]
+                C_prev_prev_i, C_prev_i = C_prev_i, cell.multiplier * C_curr_i
+                
+            self.image_global_pooling =  nn.AdaptiveAvgPool2d(output_size=(1, 1))
+            self.image_fc = nn.Linear(C_prev_i, out_channels)
+
+            C_prev_prev_l, C_prev_l, C_curr_l = C_lidar, C_lidar, C_lidar
+            self.cells_lidar = nn.ModuleList()
+            reduction_prev = False
+            for i in range(self.lidar_layers):
+                if i in [self.lidar_layers // 3, 2 * self.lidar_layers // 3]:
+                    C_curr_l *= 2
+                    reduction = True
+                else:
+                    reduction = False
+                cell = Cell(genotype_lidar, C_prev_prev_l, C_prev_l, C_curr_l, reduction,
+                            reduction_prev)
+                reduction_prev = reduction
+                self.cells_lidar += [cell]
+                C_prev_prev_l, C_prev_l = C_prev_l, cell.multiplier * C_curr_l
+            
+            self.lidar_global_pooling =  nn.AdaptiveAvgPool2d(output_size=(1, 1))
+            self.lidar_fc = nn.Linear(C_prev_l, out_channels)
+        elif search_mode == 1:
+            self.image_encoder = ImageCNN(512, normalize=True)
+            self.stem_lidar = nn.Sequential(
+                nn.Conv2d(1, C_lidar, kernel_size=7, stride=2, padding=3, bias=False),
+                nn.BatchNorm2d(C_lidar, eps=1e-05, momentum=0.1,affine=True, track_running_stats=True),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(kernel_size=3, stride=2, padding=1, dilation=1, ceil_mode=False)
+            )
+            C_prev_prev_l, C_prev_l, C_curr_l = C_lidar, C_lidar, C_lidar
+            self.cells_lidar = nn.ModuleList()
+            reduction_prev = False
+            for i in range(self.lidar_layers):
+                if i in [self.lidar_layers // 3, 2 * self.lidar_layers // 3]:
+                    C_curr_l *= 2
+                    reduction = True
+                else:
+                    reduction = False
+                cell = Cell(genotype_lidar, C_prev_prev_l, C_prev_l, C_curr_l, reduction,
+                            reduction_prev)
+                reduction_prev = reduction
+                self.cells_lidar += [cell]
+                C_prev_prev_l, C_prev_l = C_prev_l, cell.multiplier * C_curr_l
+            
+            self.lidar_global_pooling =  nn.AdaptiveAvgPool2d(output_size=(1, 1))
+            self.lidar_fc = nn.Linear(C_prev_l, out_channels)
+        elif search_mode == 0:
+            self.lidar_encoder = LidarEncoder(num_classes=512, in_channels=1)
+            self.stem_image = nn.Sequential(
+                nn.Conv2d(3, C_image, kernel_size = 7, stride = 2, padding = 3, bias=False),
+                nn.BatchNorm2d(C_image, eps=1e-05, momentum=0.1,affine=True, track_running_stats=True),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(kernel_size=3, stride=2, padding=1, dilation=1, ceil_mode=False)
+            )
+            C_prev_prev_i, C_prev_i, C_curr_i = C_image, C_image, C_image
+            self.cells_image = nn.ModuleList()
+            reduction_prev = False       
+            for i in range(self.image_layers):
+                if i in [self.image_layers // 3, 2 * self.image_layers // 3]:
+                    C_curr_i *= 2
+                    reduction = True
+                else:
+                    reduction = False
+                cell = Cell(genotype_image, C_prev_prev_i, C_prev_i, C_curr_i, reduction,
+                            reduction_prev)
+                reduction_prev = reduction
+                self.cells_image += [cell]
+                C_prev_prev_i, C_prev_i = C_prev_i, cell.multiplier * C_curr_i
+                
+            self.image_global_pooling =  nn.AdaptiveAvgPool2d(output_size=(1, 1))
+            self.image_fc = nn.Linear(C_prev_i, out_channels)
+
     def forward(self, image_list, lidar_list):
         lidar_list = lidar_list.squeeze(0)
         # print(lidar_list.shape)
@@ -462,22 +515,63 @@ class NetworkEncoder(nn.Module):
         image_tensor = image_list.view(bz * self.n_views * self.seq_len, img_channel, h, w)   # b, 3, h, w
         lidar_tensor = lidar_list.view(bz * self.seq_len, lidar_channel, h, w)   # b, 1, h, w
 
+        if self.search_mode == 2:
+            s0 = s1 = self.stem_image(image_tensor)
+            for i, cell in enumerate(self.cells_image):
+                s0, s1 = s1, cell(s0, s1, self.drop_path_prob)
+            image_features = self.image_global_pooling(s1)
+            image_features = torch.flatten(image_features, 1)
+            image_features = image_features.view(bz, self.n_views * self.seq_len, -1)
+            image_features = self.image_fc(image_features)
 
-        s0 = s1 = self.stem_image(image_tensor)
-        for i, cell in enumerate(self.cells_image):
-            s0, s1 = s1, cell(s0, s1, self.drop_path_prob)
-        image_features = self.image_global_pooling(s1)
-        image_features = torch.flatten(image_features, 1)
-        image_features = image_features.view(bz, self.n_views * self.seq_len, -1)
-        image_features = self.image_fc(image_features)
+            s0 = s1 = self.stem_lidar(lidar_tensor)
+            for i, cell in enumerate(self.cells_lidar):
+                s0, s1 = s1, cell(s0, s1, self.drop_path_prob)
+            lidar_features = self.lidar_global_pooling(s1)     
+            lidar_features = torch.flatten(lidar_features, 1)
+            lidar_features = lidar_features.view(bz, self.seq_len, -1)
+            lidar_features = self.lidar_fc(lidar_features)
+        elif self.search_mode == 1:
+            image_features = self.image_encoder.features.conv1(image_tensor)
+            image_features = self.image_encoder.features.bn1(image_features)
+            image_features = self.image_encoder.features.relu(image_features)
+            image_features = self.image_encoder.features.maxpool(image_features)
 
-        s0 = s1 = self.stem_lidar(lidar_tensor)
-        for i, cell in enumerate(self.cells_lidar):
-            s0, s1 = s1, cell(s0, s1, self.drop_path_prob)
-        lidar_features = self.lidar_global_pooling(s1)     
-        lidar_features = torch.flatten(lidar_features, 1)
-        lidar_features = lidar_features.view(bz, self.seq_len, -1)
-        lidar_features = self.lidar_fc(lidar_features)
+            image_features = self.image_encoder.features.layer1(image_features)
+            image_features = self.image_encoder.features.layer2(image_features)
+            image_features = self.image_encoder.features.layer3(image_features)
+            image_features = self.image_encoder.features.layer4(image_features)
+            image_features = self.image_encoder.features.avgpool(image_features)
+            image_features = torch.flatten(image_features, 1)
+            image_features = image_features.view(bz, self.n_views * self.seq_len, -1)
+            
+            s0 = s1 = self.stem_lidar(lidar_tensor)
+            for i, cell in enumerate(self.cells_lidar):
+                s0, s1 = s1, cell(s0, s1, self.drop_path_prob)
+            lidar_features = self.lidar_global_pooling(s1)     
+            lidar_features = torch.flatten(lidar_features, 1)
+            lidar_features = lidar_features.view(bz, self.seq_len, -1)
+            lidar_features = self.lidar_fc(lidar_features)
+        elif self.search_mode == 0:
+            lidar_features = self.lidar_encoder._model.conv1(lidar_tensor)
+            lidar_features = self.lidar_encoder._model.bn1(lidar_features)
+            lidar_features = self.lidar_encoder._model.relu(lidar_features)
+            lidar_features = self.lidar_encoder._model.maxpool(lidar_features)
+            lidar_features = self.lidar_encoder._model.layer1(lidar_features)
+            lidar_features = self.lidar_encoder._model.layer2(lidar_features)
+            lidar_features = self.lidar_encoder._model.layer3(lidar_features)
+            lidar_features = self.lidar_encoder._model.layer4(lidar_features)
+            lidar_features = self.lidar_encoder._model.avgpool(lidar_features)
+            lidar_features = torch.flatten(lidar_features, 1)
+            lidar_features = lidar_features.view(bz, self.seq_len, -1)
+            
+            s0 = s1 = self.stem_image(image_tensor)
+            for i, cell in enumerate(self.cells_image):
+                s0, s1 = s1, cell(s0, s1, self.drop_path_prob)
+            image_features = self.image_global_pooling(s1)
+            image_features = torch.flatten(image_features, 1)
+            image_features = image_features.view(bz, self.n_views * self.seq_len, -1)
+            image_features = self.image_fc(image_features)
 
 
         fused_features = torch.cat([image_features, lidar_features], dim=1)

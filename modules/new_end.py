@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
-from .groupnorm import GroupNorm
+
 
 class NewEndIndicator_v1(nn.Module):
 
@@ -8,16 +8,16 @@ class NewEndIndicator_v1(nn.Module):
         super(NewEndIndicator_v1, self).__init__()
         self.mode = mode
         self.w_end_conv = nn.Sequential(
-            GroupNorm(1, in_channels),
+            nn.GroupNorm(1, in_channels),
             nn.Conv2d(in_channels, in_channels // reduction, 1, 1),
-            GroupNorm(1, in_channels // reduction),
+            nn.GroupNorm(1, in_channels // reduction),
             nn.ReLU(inplace=True),
             nn.Conv2d(in_channels // reduction, 1, 1, 1),
         )
         self.w_new_conv = nn.Sequential(
-            GroupNorm(1, in_channels),
+            nn.GroupNorm(1, in_channels),
             nn.Conv2d(in_channels, in_channels // reduction, 1, 1),
-            GroupNorm(1, in_channels // reduction),
+            nn.GroupNorm(1, in_channels // reduction),
             nn.ReLU(inplace=True),
             nn.Conv2d(in_channels // reduction, 1, 1, 1),
         )
@@ -47,14 +47,14 @@ class NewEndIndicator_v2(nn.Module):
         self.mode = mode
         self.conv0 = nn.Sequential(
             nn.Conv2d(in_channels, in_channels, 1, 1),
-            GroupNorm(1, in_channels),
+            nn.GroupNorm(1, in_channels),
             nn.ReLU(inplace=True),
         )
         self.conv1 = nn.Sequential(
             nn.Conv1d(in_channels, min(in_channels, 512), 1, 1),
-            GroupNorm(1, min(in_channels, 512)), nn.ReLU(inplace=True),
+            nn.GroupNorm(1, min(in_channels, 512)), nn.ReLU(inplace=True),
             nn.Conv1d(min(in_channels, 512), in_channels // reduction, 1, 1),
-            GroupNorm(1, in_channels // reduction), nn.ReLU(inplace=True),
+            nn.GroupNorm(1, in_channels // reduction), nn.ReLU(inplace=True),
             nn.Conv1d(in_channels // reduction, 1, 1, 1), nn.Sigmoid())
         print(f"End version V2 by {mode}")
         #print(self)

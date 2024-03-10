@@ -69,27 +69,6 @@ class tData:
         attrs = vars(self)
         return '\n'.join("%s: %s" % item for item in attrs.items())
 
-# TRAIN_SEQ_ID = ['0003', '0001', '0013', '0009', '0004', \
-#                 '0006', '0008', '0020', '0015', '0012']
-# VALID_SEQ_ID = ['0005', '0007', '0017', '0011', '0002', \
-#                 '0014', '0000', '0010', '0016', '0019', '0018']
-# TEST_SEQ_ID = [f'{i:04d}' for i in range(29)]
-# # Valid sequence 0017 has no cars in detection,
-# # so it should not be included if val with GT detection
-# # VALID_SEQ_ID = ['0005', '0007', '0011', '0002', '0014', \
-# #                '0000', '0010', '0016', '0019', '0018']
-# TRAINVAL_SEQ_ID = [f'{i:04d}' for i in range(21)]
-
-
-# TRAIN_SEQ_ID = ['0003', '0001']
-# VALID_SEQ_ID = ['0005', '0018', '0019']
-# TEST_SEQ_ID = [f'{i:04d}' for i in range(1)]
-# # Valid sequence 0017 has no cars in detection,
-# # so it should not be included if val with GT detection
-# # VALID_SEQ_ID = ['0005', '0007', '0011', '0002', '0014', \
-# #                '0000', '0010', '0016', '0019', '0018']
-# TRAINVAL_SEQ_ID = [f'{i:04d}' for i in range(1)]
-
 TRAIN_SEQ_ID = ['0003', '0001', '0013', '0009', '0004', \
                 '0006', '0008', '0020', '0015', '0012']
 VALID_SEQ_ID = ['0005', '0007', '0017', '0011', '0002', \
@@ -100,6 +79,17 @@ TEST_SEQ_ID = [f'{i:04d}' for i in range(29)]
 # VALID_SEQ_ID = ['0005', '0007', '0011', '0002', '0014', \
 #                '0000', '0010', '0016', '0019', '0018']
 TRAINVAL_SEQ_ID = [f'{i:04d}' for i in range(21)]
+
+
+# TRAIN_SEQ_ID = ['0001']
+# VALID_SEQ_ID = ['0000']
+# TEST_SEQ_ID = [f'{i:04d}' for i in range(1)]
+# # Valid sequence 0017 has no cars in detection, 
+# # so it should not be included if val with GT detection
+# #VALID_SEQ_ID = ['0005', '0007', '0011', '0002', '0014', \
+# #                '0000', '0010', '0016', '0019', '0018']
+# TRAINVAL_SEQ_ID = [f'{i:04d}' for i in range(1)]
+
 
 class trackingEvaluation(object):
     """ tracking statistics (CLEAR MOT, id-switches, fragments, ML/PT/MT, precision/recall)
@@ -153,7 +143,6 @@ class trackingEvaluation(object):
         self.gt_path           = os.path.join(gt_path, "label_02")
         self.t_sha             = t_sha
         self.t_path            = os.path.join(root, t_sha, part)
-        
         
         # statistics and numbers for evaluation
         self.n_gt              = 0 # number of ground truth detections minus ignored false negatives and true positives
@@ -263,7 +252,6 @@ class trackingEvaluation(object):
         for seq, s_name in enumerate(self.sequence_name):
             i              = 0
             filename       = os.path.join(root_dir, "%s.txt" % s_name)
-            #print(filename)
             f              = open(filename, "r")
 
             f_data         = [[] for x in range(self.n_frames[seq])] # current set has only 1059 entries, sufficient length is checked anyway

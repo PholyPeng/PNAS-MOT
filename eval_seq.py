@@ -16,15 +16,16 @@ from utils.build_util import build_augmentation, build_dataset, build_model
 from utils.data_util import write_kitti_result
 from utils.train_util import AverageMeter, create_logger, load_state
 
-parser = argparse.ArgumentParser(description='PyTorch mmMOT Evaluation')
+parser = argparse.ArgumentParser(description='PyTorch MOT Evaluation')
 parser.add_argument('--config', default='./experiments/config.yaml')
-parser.add_argument('--load-path', default='./experiments/ckpt_best.pth.tar', type=str)
+parser.add_argument('--load-path', default='./experiments/ckpt.pth.tar', type=str)
 parser.add_argument('--result-path', default='./experiments/results', type=str)
 parser.add_argument('--recover', action='store_true')
 parser.add_argument('-e', '--evaluate', action='store_true')
 parser.add_argument('--result_sha', default='last')
 parser.add_argument('--memory', action='store_true')
 parser.add_argument('--drop_path_prob', type=float, default=0.2, help='drop path probability')
+
 
 def main():
     global args, config, best_mota
@@ -50,6 +51,12 @@ def main():
     # Data loading code
     train_transform, valid_transform = build_augmentation(config.augmentation)
 
+    # build dataset
+    # train_dataset = build_dataset(
+    #     config,
+    #     set_source='train',
+    #     evaluate=True,
+    #     valid_transform=valid_transform)
     val_dataset = build_dataset(
         config,
         set_source='val',
@@ -62,6 +69,8 @@ def main():
 
     tracking_module = TrackingModule(model, None, None, config.det_type)
 
+    #logger.info('Evaluation on traing set:')
+    #validate(train_dataset, tracking_module, args.result_sha, part='train')
     logger.info('Evaluation on validation set:')
     validate(val_dataset, tracking_module, args.result_sha, part='val')
 
@@ -76,6 +85,7 @@ def validate(val_loader,
     rec = AverageMeter(0)
     mota = AverageMeter(0)
     motp = AverageMeter(0)
+    final_time = AverageMeter(0)
 
     logger = logging.getLogger('global_logger')
     for i, (sequence) in enumerate(val_loader):
@@ -96,12 +106,13 @@ def validate(val_loader,
                 seq_prec, seq_rec, seq_mota, seq_motp = validate_mem_seq(
                     seq_loader, tracking_module)
             else:
-                seq_prec, seq_rec, seq_mota, seq_motp = validate_seq(
+                seq_prec, seq_rec, seq_mota, seq_motp, seq_time = validate_seq(
                     seq_loader, tracking_module)
             prec.update(seq_prec, 1)
             rec.update(seq_rec, 1)
             mota.update(seq_mota, 1)
             motp.update(seq_motp, 1)
+            final_time.update(seq_time, 1)
 
         write_kitti_result(
             args.result_path,
@@ -113,8 +124,8 @@ def validate(val_loader,
 
     total_num = torch.Tensor([prec.count])
     logger.info(
-        '* Prec: {:.3f}\tRec: {:.3f}\tMOTA: {:.3f}\tMOTP: {:.3f}\ttotal_num={}'
-        .format(prec.avg, rec.avg, mota.avg, motp.avg, total_num.item()))
+        '* Prec: {:.3f}\tRec: {:.3f}\tMOTA: {:.3f}\tMOTP: {:.3f}\ttotal_num={}\ttotal_average_time={:.3f}'
+        .format(prec.avg, rec.avg, mota.avg, motp.avg, total_num.item(), final_time.avg))
     MOTA, MOTP, recall, prec, F1, fp, fn, id_switches = evaluate(
         step, args.result_path, part=part)
 
@@ -132,7 +143,8 @@ def validate_seq(val_loader,
     tracking_module.eval()
 
     logger = logging.getLogger('global_logger')
-    # end = time.time()
+    end = time.time()
+    total_time = 0.0
 
     with torch.no_grad():
         for i, (input, det_info, dets, det_split) in enumerate(val_loader):
@@ -147,13 +159,14 @@ def validate_seq(val_loader,
                 input[0], det_info, dets, det_split)
             end = time.time()
             batch_time.update(end - start)
+            total_time += (end - start)
             
             if i % config.print_freq == 0:
                 logger.info('Test Frame: [{0}/{1}]\tTime {batch_time.val:.3f}'
                             '({batch_time.avg:.3f})'.format(
                                 i, len(val_loader), batch_time=batch_time))
 
-    return 0, 0, 0, 0
+    return 0, 0, 0, 0, total_time
 
 
 def validate_mem_seq(val_loader,
@@ -166,7 +179,7 @@ def validate_mem_seq(val_loader,
     tracking_module.eval()
 
     logger = logging.getLogger('global_logger')
-    # end = time.time()
+    end = time.time()
 
     with torch.no_grad():
         for i, (input, det_info, dets, det_split, gt_dets, gt_ids,
@@ -176,15 +189,15 @@ def validate_mem_seq(val_loader,
                 for k, v in det_info.items():
                     det_info[k] = det_info[k].cuda() if not isinstance(
                         det_info[k], list) else det_info[k]
-            start = time.time()
+
             # compute output
             results = tracking_module.mem_predict(input[0], det_info, dets,
                                                   det_split)
             aligned_ids, aligned_dets, frame_start = results
-            end = time.time()
+
             # measure elapsed time
-            batch_time.update(end - start)
-            
+            batch_time.update(time.time() - end)
+            end = time.time()
             if i % config.print_freq == 0:
                 logger.info(
                     'Test Frame: [{0}/{1}]\tTime '

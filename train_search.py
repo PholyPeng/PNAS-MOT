@@ -27,10 +27,10 @@ from utils.build_util import (build_augmentation, build_criterion,
 from utils.train_util import (AverageMeter, DistributedGivenIterationSampler,
                               create_logger, load_state, load_partial_state, load_part_model,save_checkpoint)
                              
-parser = argparse.ArgumentParser(description='PyTorch mmMOT Training')
-parser.add_argument('--config', default='./experiments/config.yaml')
+parser = argparse.ArgumentParser(description='PyTorch MOT Training')
+parser.add_argument('--config', default='./experiments/config_search.yaml')
 parser.add_argument('--load-path', default='', type=str)
-parser.add_argument('--result-path', default='./experiments/results', type=str)
+parser.add_argument('--result-path', default='./experiments/resutls', type=str)
 
 parser.add_argument('--data',type=str,default='../data',help='location of the data corpus')
 parser.add_argument('--batch_size', type=int, default=1, help='batch size')
@@ -40,11 +40,11 @@ parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 parser.add_argument('--weight_decay',type=float,default=3e-4,help='weight decay')
 parser.add_argument('--report_freq',type=float,default=50,help='report frequency')
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
-parser.add_argument('--epochs',type=int,default=20,help='num of training epochs')
+parser.add_argument('--epochs',type=int,default=5,help='num of training epochs')
 parser.add_argument('--init_channels_image',type=int,default=64,help='num of init channels')
 parser.add_argument('--init_channels_lidar',type=int,default=64,help='num of init channels')
 parser.add_argument('--out_channels',type=int,default=512,help='num of init channels')
-parser.add_argument('--layers',type=int,default=5,help='total number of layers')
+parser.add_argument('--layers',type=int,default=2,help='total number of layers')
 parser.add_argument('--model_path',type=str,default='saved_models',help='path to save the model')
 parser.add_argument('--cutout',action='store_true',default=False,help='use cutout')
 parser.add_argument('--cutout_length',type=int,default=16, help='cutout length')
@@ -56,12 +56,14 @@ parser.add_argument('--train_portion',type=float,default=0.5,help='portion of tr
 parser.add_argument('--unrolled', action='store_true',default=False,help='use one-step unrolled validation loss')
 parser.add_argument('--arch_learning_rate',type=float,default=3e-4,help='learning rate for arch encoding')
 parser.add_argument('--arch_weight_decay',type=float,default=1e-3,help='weight decay for arch encoding')
+parser.add_argument('--search_mode', type=int, default=2, help='0-search image branch, 1-lidar branch, 2-all-branch')
+
 global args
 args = parser.parse_args()
 
 args.save = './experiments/search_exp/search-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
 search_utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
-
+print("Using search mode {}".format(args.search_mode))
 log_format = '%(asctime)s %(message)s'
 logging.basicConfig(stream=sys.stdout,
                     level=logging.INFO,
@@ -80,12 +82,12 @@ def main():
         sys.exit(1)
 
     np.random.seed(args.seed)
-    torch.cuda.set_device(args.gpu)
+    # torch.cuda.set_device(args.gpu)
     cudnn.benchmark = False
     torch.manual_seed(args.seed)
     cudnn.enabled = False
     torch.cuda.manual_seed(args.seed)
-    logging.info('gpu device = %d' % args.gpu)
+    # logging.info('gpu device = %d' % args.gpu)
     logging.info("args = %s", args)
 
     with open(args.config) as f:
@@ -106,14 +108,13 @@ def main():
         out_channels = args.out_channels,
         layers_image = 2,
         layers_lidar = 2,
-        seq_len=config.sample_max_len,
+        search_mode= args.search_mode,
         score_arch=config.model.score_arch,
         softmax_mode=config.model.softmax_mode,
         test_mode=config.model.test_mode,
         affinity_op=config.model.affinity_op,
         end_arch=config.model.end_arch,
         end_mode=config.model.end_mode, 
-        without_reflectivity=config.without_reflectivity,
         neg_threshold=config.model.neg_threshold,
         criterion = criterion)
     model = model.cuda()
@@ -180,6 +181,7 @@ def main():
         sampler=valid_sampler)
     
     valid_queue = iter(valid_queue)
+
     #torch.utils.data.sampler.SubsetRandomSampler(indices[0:num_train])
     val_dataset = build_dataset(
         config,
@@ -187,7 +189,7 @@ def main():
         evaluate=True,
         valid_transform=valid_transform)
 
-    # TODO:check whether to change it to TranMOT mode
+
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs), eta_min=args.learning_rate_min)
     #scheduler = build_lr_scheduler(config.lr_scheduler, optimizer)
     architect = Architect(model, args)
@@ -230,7 +232,7 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer,
     logger = logging.getLogger('global_logger')
     print("length", len(train_queue))
     step = 0
-    
+
     end = time.time()
     for i, (input, det_info, det_id, det_cls, det_split) in enumerate(train_queue):
         step += 1
@@ -249,10 +251,6 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer,
             for k, v in det_info_search.items():
                 det_info_search[k] = Variable(det_info_search[k],requires_grad=False).cuda() if not isinstance(det_info_search[k], list) else det_info_search[k]
         data_time.update(time.time() - end)
-        # get a random minibatch from the search queue with replacement
-        # input_search, target_search = next(iter(valid_queue))
-        # input_search = Variable(input_search, requires_grad=False).cuda()
-        # target_search = Variable(target_search,requires_grad=False).cuda()
 
         architect.step(input.squeeze(0), 
                        det_info, 
@@ -276,6 +274,7 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer,
                             det_split)
 
         loss.backward()
+        nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
         # nn.utils.clip_grad_norm(model.parameters(), args.grad_clip)
         optimizer.step()
         batch_time.update(time.time() - end)
@@ -337,7 +336,7 @@ def validate_seq(val_loader,
     model.set_eval()
 
     logger = logging.getLogger('global_logger')
-    end = time.time()
+    
 
     with torch.no_grad():
         for i, (input, det_info, dets, det_split) in enumerate(val_loader):
