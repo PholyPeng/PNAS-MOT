@@ -8,7 +8,7 @@
 
 Multiple object tracking is a critical task in autonomous driving. Existing works primarily focus on the heuristic design of neural networks to obtain high accuracy. As tracking accuracy improves, however, neural networks become increasingly complex, posing challenges for their practical application in real driving scenarios due to the high level of latency. In this paper, we explore the use of the neural architecture search (NAS) methods to search for efficient architectures for tracking, aiming for low real-time latency while maintaining relatively high accuracy. Another challenge for object tracking is the unreliability of a single sensor, therefore, we propose a multi-modal framework to improve the robustness.  Experiments demonstrate that our algorithm can run on edge devices within lower latency constraints, thus greatly reducing the computational requirements for multi-modal object tracking while keeping lower latency.
 
-For more details, please refer our [paper]().
+For more details, please refer our [paper](https://arxiv.org/abs/2403.15712).
 
 ## Install
 
@@ -50,6 +50,8 @@ The pretrained weights are stored in `experiments/`
 
 ![](assets/Results.png)
 
+We also provide our tracking results on the testing split in [Google Drive](https://drive.google.com/file/d/1rVx9gadYVacRryalJbvqQppaBppDtiVo/view?usp=drive_link).
+
 ## Visualization
 
 ![](assets/tracking_result.png)
@@ -58,13 +60,12 @@ The pretrained weights are stored in `experiments/`
 
 If you use this codebase or model in your research, please cite:
 ```
-@article{peng2023pnasmot,
-    author = {Peng, Chensheng and Zeng, Zhaoyu and Gao, Jinling and Zhou, Jundong and Wang, Xinbing and Zhou, Chenghu and Ye, Nanyang},
-    title = {PNAS-MOT: Multi-Modal Object Tracking with Pareto Neural Architecture Search},
-    journal={IEEE Robotics and Automation Letters},
-    year={2023},
-    publisher={IEEE}
-}
+@ARTICLE{peng2024pnasmot,
+  author={Peng, Chensheng and Zeng, Zhaoyu and Gao, Jinling and Zhou, Jundong and Tomizuka, Masayoshi and Wang, Xinbing and Zhou, Chenghu and Ye, Nanyang},
+  journal={IEEE Robotics and Automation Letters}, 
+  title={PNAS-MOT: Multi-Modal Object Tracking With Pareto Neural Architecture Search}, 
+  year={2024},
+  doi={10.1109/LRA.2024.3379865}}
 ```
 
 ## Acknowledgement
